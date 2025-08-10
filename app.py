@@ -3,6 +3,7 @@ from streamlit_drawable_canvas import st_canvas
 import numpy as np
 from PIL import Image
 from neuralnet.model import NeuralNetwork  
+from neuralnet.utils import normalize  
 
 # --------------------
 # Model Loading
@@ -34,21 +35,21 @@ canvas_result = st_canvas(
 if canvas_result.image_data is not None:
     img_data = canvas_result.image_data
 
-    # 1. Convertir en image PIL (canal rouge)
+    # 1. Conversion en image PIL (garde 1 canal)
     img = Image.fromarray((img_data[:, :, 0]).astype(np.uint8))
     img = img.convert("L")  # gris
 
     # 2. Redimensionner en 28x28
     img = img.resize((28, 28))
 
-    # 3. Inverser couleurs
+    # 3. Inverser les couleurs (fond noir, trait blanc comme MNIST)
     img = Image.eval(img, lambda x: 255 - x)
 
-    # 4. Normalisation
-    img_array = np.array(img) / 255.0
+    # 4. Conversion en array numpy
+    img_array = np.array(img, dtype=np.float32)
 
-    # 5. Aplatir
-    img_array = img_array.reshape(784, 1)
+    # 5. Normalisation + reshape comme l’entraînement
+    img_array = normalize(img_array.reshape(1, -1)).T  # 🔹 identique au training
 
     # --------------------
     # Faire la prédiction
@@ -56,8 +57,8 @@ if canvas_result.image_data is not None:
     probs = model.forward(img_array).flatten()  # sorties softmax
     pred_class = np.argmax(probs)
 
-    st.subheader(f"✅ Prédiction : **{pred_class}**")
-    st.image(img, caption="Image prétraitée (MNIST format)", width=100)
+    st.subheader(f"Prediction : **{pred_class}**")
+    st.image(img, caption="Image preprocessed (MNIST format)", width=100)
 
     # --------------------
     # Affichage des probabilités
