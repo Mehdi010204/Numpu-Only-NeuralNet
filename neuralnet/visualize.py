@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
-from sklearn.metrics import confusion_matrix
 
 def show_sample_images(X, Y, samples=10):
     plt.figure(figsize=(10, 2))
