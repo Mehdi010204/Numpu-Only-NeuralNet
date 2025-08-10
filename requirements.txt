@@ -1,0 +1,12 @@
+# Core
+numpy
+pandas
+
+# Visualization
+matplotlib
+
+# Web app
+streamlit
+streamlit-drawable-canvas
+Pillow
+
