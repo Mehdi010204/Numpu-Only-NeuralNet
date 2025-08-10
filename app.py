@@ -1,57 +1,67 @@
 import streamlit as st
-import numpy as np
-from PIL import Image, ImageOps
 from streamlit_drawable_canvas import st_canvas
+import numpy as np
+from PIL import Image
+from neuralnet.model import NeuralNetwork  
 
-# ---------- Page Config ----------
-st.set_page_config(page_title="MNIST Digit Classifier", page_icon="✏️", layout="centered")
+# --------------------
+# Model Loading
+# --------------------
+model = NeuralNetwork(input_size=784, hidden_size=128, output_size=10)
+model.load_model("model_weights.npz") 
 
-st.title("✏️ Draw a Digit")
-st.write("Draw a digit (0-9) in the box below and let the model predict it.")
+st.set_page_config(page_title="MNIST Digit Recognizer", page_icon="✏️")
+st.title("MNIST Digit Recognizer")
+st.write("Write down a number between 0 and 9")
 
-# ---------- Model Loading ----------
-@st.cache_resource
-def load_model():
-    data = np.load("model_weights.npz")
-    return data["w1"], data["b1"], data["w2"], data["b2"]
-
-w1, b1, w2, b2 = load_model()
-
-# ---------- Utils ----------
-def relu(z):
-    return np.maximum(0, z)
-
-def softmax(z):
-    exp_z = np.exp(z - np.max(z))
-    return exp_z / exp_z.sum(axis=0)
-
-def predict_image(img_array):
-    img_array = img_array.reshape(-1, 1)  # (784, 1)
-    z1 = np.dot(w1, img_array) + b1
-    a1 = relu(z1)
-    z2 = np.dot(w2, a1) + b2
-    a2 = softmax(z2)
-    return np.argmax(a2)
-
-# ---------- Drawing zone ----------
+# --------------------
+# Canvas
+# --------------------
 canvas_result = st_canvas(
     fill_color="white",
-    stroke_width=15,
+    stroke_width=10,
     stroke_color="black",
     background_color="white",
-    height=280,
     width=280,
+    height=280,
     drawing_mode="freedraw",
-    key="canvas"
+    key="canvas",
 )
 
-# ---------- Prediction ----------
+# --------------------
+# Prediction 
+# --------------------
 if canvas_result.image_data is not None:
-    img = Image.fromarray((255 - canvas_result.image_data[:, :, 0]).astype(np.uint8)) 
-    img = img.resize((28, 28)).convert("L")
-    img_array = np.array(img) / 255.0  
-    
-    prediction = predict_image(img_array)
-    
-    st.image(img, caption="Processed Image (28x28)", width=150)
-    st.subheader(f"Prediction: **{prediction}**")
+    img_data = canvas_result.image_data
+
+    # 1. Convertir en image PIL (canal rouge)
+    img = Image.fromarray((img_data[:, :, 0]).astype(np.uint8))
+    img = img.convert("L")  # gris
+
+    # 2. Redimensionner en 28x28
+    img = img.resize((28, 28))
+
+    # 3. Inverser couleurs
+    img = Image.eval(img, lambda x: 255 - x)
+
+    # 4. Normalisation
+    img_array = np.array(img) / 255.0
+
+    # 5. Aplatir
+    img_array = img_array.reshape(784, 1)
+
+    # --------------------
+    # Faire la prédiction
+    # --------------------
+    probs = model.forward(img_array).flatten()  # sorties softmax
+    pred_class = np.argmax(probs)
+
+    st.subheader(f"✅ Prédiction : **{pred_class}**")
+    st.image(img, caption="Image prétraitée (MNIST format)", width=100)
+
+    # --------------------
+    # Affichage des probabilités
+    # --------------------
+    st.write("### Probabilités par chiffre :")
+    chart_data = {str(i): probs[i] for i in range(10)}
+    st.bar_chart(chart_data)
